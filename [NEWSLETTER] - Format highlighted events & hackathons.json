@@ -1,0 +1,673 @@
+{
+  "name": "[NEWSLETTER] - Format highlighted events & hackathons",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -192
+      ],
+      "id": "c825b58c-d55a-4ea3-81e2-8cfbbf99c23e",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "hackathons",
+        "limit": 3,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_highlight",
+              "condition": "eq",
+              "keyValue": "true"
+            },
+            {
+              "keyName": "posted_newsletter",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "start_date",
+              "condition": "gt",
+              "keyValue": "={{ new Date().toISOString().split('T')[0] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "cb5e10eb-e2e7-469f-94bc-137b81d6b3fe",
+      "name": "Get Highlighted Hackathons",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "TAT9qafzVMzcUqZP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "events",
+        "limit": 5,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_highlight",
+              "condition": "eq",
+              "keyValue": "true"
+            },
+            {
+              "keyName": "posted_newsletter",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "start_date",
+              "condition": "gt",
+              "keyValue": "={{ new Date().toISOString().split('T')[0] }}\n"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -352
+      ],
+      "id": "f4999212-7238-4235-b2fd-3d097922580d",
+      "name": "Get Highlighted Events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "TAT9qafzVMzcUqZP",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const e = item.json;\n\n  // --- Safe extraction\n  const name = e.name ?? \"Unnamed Event\";\n  const isoDate = e.start_date ?? null;\n  const timeRaw = e.start_time ?? null;\n  const location = e.location ?? \"Location TBA\";\n  const description = e.description ?? \"No description available.\";\n  const link = e.link ?? \"#\";\n\n  // --- Date formatting\n  let dateStr = \"Date TBA\";\n\n  try {\n    if (isoDate) {\n      const d = new Date(isoDate);\n\n      const datePart = d.toLocaleDateString(\"en-US\", {\n        month: \"short\",\n        day: \"numeric\"\n      });\n\n      let timePart = \"\";\n\n      // Format time only if present\n      if (timeRaw) {\n        const t = new Date(`${isoDate.split(\"T\")[0]}T${timeRaw}`);\n        timePart = t.toLocaleTimeString(\"en-US\", {\n          hour: \"2-digit\",\n          minute: \"2-digit\",\n          hour12: false\n        });\n      }\n\n      dateStr = timePart ? `${datePart}, ${timePart}` : datePart;\n    }\n  } catch {\n    // fallback\n  }\n\n  // --- Formatting output\n  const header = `🧊 ${name}`;\n  const meta = `🌤️ ${dateStr} | 📍 ${location}`;\n  const desc = `✨ ${description}`;\n  const url = `➜ ${link}`;\n\n  const formatted = `${header}\\n${meta}\\n${desc}\\n${url}`;\n\n  return {\n    json: { formatted }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -288
+      ],
+      "id": "37fe8c9c-7a49-4de1-ac13-2bd92ea0f7a6",
+      "name": "Format Events"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const e = item.json;\n\n  // --- Safe extract\n  const name = e.name ?? \"Unnamed Hackathon\";\n  const location = e.location ?? \"Location TBA\";\n  const link = e.link ?? \"#\";\n  const prizes = e.prizes ?? \"Prizes TBA\";\n\n  const formatDate = (d) => {\n    if (!d) return null;\n    try {\n      const dt = new Date(d);\n      return {\n        month: dt.toLocaleDateString(\"en-US\", { month: \"short\" }),\n        day: dt.getDate(),\n      };\n    } catch {\n      return null;\n    }\n  };\n\n  const start = formatDate(e.start_date);\n  const end = formatDate(e.end_date);\n\n  // --- Build final date range string\n  let dateStr = \"Date TBA\";\n\n  if (start && end) {\n    if (start.month === end.month) {\n      // Same month —> \"Nov 29–30\"\n      dateStr = `${start.month} ${start.day}–${end.day}`;\n    } else {\n      // Different month —> \"Nov 29 – Dec 1\"\n      dateStr = `${start.month} ${start.day} – ${end.month} ${end.day}`;\n    }\n  } else if (start) {\n    // Only start exists\n    dateStr = `${start.month} ${start.day}`;\n  }\n\n  // --- Final formatted message\n  const formatted =\n`🧩 ${name}\n⏳ ${dateStr}   |  🗺️ ${location}\n🥇 ${prizes}\n🚀 ${link}`;\n\n  return {\n    json: { formatted }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -96
+      ],
+      "id": "cd5b514c-9e71-4fb8-8214-731aa3d8e43a",
+      "name": "Format Hackathons"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Items coming into this node each have:\n// item.json.formatted  -> the final formatted event string\n\n// Collect all formatted blocks\nconst bulletList = items\n  .map(item => `* ${item.json.formatted}`)\n  .join(\"\\n\\n\"); // spacing between BPs — adjust if needed\n\nreturn [\n  {\n    json: {\n      bullet_list: bulletList\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -288
+      ],
+      "id": "bb770de7-b2ee-46b4-8a59-dcf3d38691d3",
+      "name": "Combine Events"
+    },
+    {
+      "parameters": {
+        "jsCode": "const list = items\n  .map(item => {\n    const f = (item.json.formatted ?? \"\").trim();\n    return `* ${f}`;\n  })\n  .join(\"\\n\\n\");\n\nreturn [\n  { json: { combined: list } }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -96
+      ],
+      "id": "69392e10-494c-49fe-b9a3-2ca8df707c69",
+      "name": "Combine Hackathons"
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "={{ $json.bullet_list }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        -288
+      ],
+      "id": "9b5bb436-3f50-4b0b-b51b-4d5754cde73d",
+      "name": "Send Events",
+      "webhookId": "072b7d94-a673-44fa-8fb6-f5025d93af40",
+      "credentials": {
+        "telegramApi": {
+          "id": "xGmNctgb9QeDZ0J1",
+          "name": "Newsletter Assistant"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "={{ $json.combined }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        -96
+      ],
+      "id": "2ea97f8a-2100-4099-9c7a-ddce04d9bb93",
+      "name": "Send Hackathons",
+      "webhookId": "072b7d94-a673-44fa-8fb6-f5025d93af40",
+      "credentials": {
+        "telegramApi": {
+          "id": "xGmNctgb9QeDZ0J1",
+          "name": "Newsletter Assistant"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "=DON'T FORGET TO HIGHLIGHT EVENTS AND HACKATHONS FOR THIS WEEK'S NEWSLETTER ‼️.  \n\nCheck which partners have sent events to promote 👀",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -544
+      ],
+      "id": "74edc00c-451a-487a-87da-de6a613a9910",
+      "name": "Reminder: Highlight Events & Hackathons",
+      "webhookId": "77cc17cb-cc6f-436c-8133-91ca6a5408dd",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "xGmNctgb9QeDZ0J1",
+          "name": "Newsletter Assistant"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14337618-1dac-4606-bfde-46bb5bd25cc4",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        -352
+      ],
+      "id": "5ae85235-3a5c-401e-b55e-6e58fd43a8b2",
+      "name": "Is Empty?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4d57b1e3-fa71-4cc8-a611-1a2301b1c0cb",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6419bae6-5665-492c-8457-54b239a2af3e",
+      "name": "Is Empty"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "empty"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        -192
+      ],
+      "id": "da9c582e-9c55-459b-9641-10e72836f5d0",
+      "name": "Check both highlights aren't empty"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Wait1').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "posted_newsletter",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -352
+      ],
+      "id": "13b759d4-349e-4724-9db4-59197f582777",
+      "name": "Check✅ (Events): Newsletter",
+      "credentials": {
+        "supabaseApi": {
+          "id": "TAT9qafzVMzcUqZP",
+          "name": "Supabase account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1792,
+        -352
+      ],
+      "id": "d4ae02db-bfd4-4d24-bedc-d72c11bf0505",
+      "name": "Wait for Message"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1792,
+        -16
+      ],
+      "id": "8e17d1dc-f684-40d4-90bd-c73648769b68",
+      "name": "Wait for Message1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "hackathons",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "posted_newsletter",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -16
+      ],
+      "id": "c943613f-0cfa-4d2d-a7a3-b6650ad8d6b1",
+      "name": "Check✅ (Hackathons): Newsletter",
+      "credentials": {
+        "supabaseApi": {
+          "id": "TAT9qafzVMzcUqZP",
+          "name": "Supabase account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "5488121b-e37c-4110-ba57-7630921f7acb",
+      "name": "Wait"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        896,
+        -368
+      ],
+      "id": "2b85be8b-6a55-4f75-aba7-84edf3a9b570",
+      "name": "Wait1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Highlighted Hackathons",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Highlighted Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Highlighted Hackathons": {
+      "main": [
+        [
+          {
+            "node": "Is Empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Highlighted Events": {
+      "main": [
+        [
+          {
+            "node": "Is Empty?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Events": {
+      "main": [
+        [
+          {
+            "node": "Combine Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Hackathons": {
+      "main": [
+        [
+          {
+            "node": "Combine Hackathons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Events": {
+      "main": [
+        [
+          {
+            "node": "Send Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Hackathons": {
+      "main": [
+        [
+          {
+            "node": "Send Hackathons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Empty?": {
+      "main": [
+        [
+          {
+            "node": "Reminder: Highlight Events & Hackathons",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check both highlights aren't empty",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Empty": {
+      "main": [
+        [
+          {
+            "node": "Reminder: Highlight Events & Hackathons",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check both highlights aren't empty",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Check both highlights aren't empty": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Events": {
+      "main": [
+        [
+          {
+            "node": "Wait for Message",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Send Hackathons": {
+      "main": [
+        [
+          {
+            "node": "Wait for Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Message": {
+      "main": [
+        [
+          {
+            "node": "Check✅ (Events): Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Message1": {
+      "main": [
+        [
+          {
+            "node": "Check✅ (Hackathons): Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Format Hackathons",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait for Message1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Format Events",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait for Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7628274f-aaec-48de-a0fc-ffc2083db829",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "899fa590e98333020bad9fbdb8e7039b91238d15b0e9182f8abddbba1c17dedf"
+  },
+  "id": "KZiFamFFOvllgprP",
+  "tags": []
+}
