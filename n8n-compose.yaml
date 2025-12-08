@@ -10,7 +10,8 @@ services:
       - N8N_RUNNERS_ENABLED=true
     volumes:
       - n8n_data:/home/node/.n8n
-      - /Users/troy/Downloads:/downloads
+      # Mount your local downloads folder; override HOST_DOWNLOADS in .env if needed
+      - ${HOST_DOWNLOADS:-/Users/flamurmaliqi/Downloads}:/downloads
 
 # ollama:
 #     image: docker.io/ollama/ollama:latest
