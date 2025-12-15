@@ -1,0 +1,740 @@
+{
+  "name": "Link –> Telegram status update + DB entry",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "589d8966-676e-4381-8f8f-a3885c27f1b7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2048,
+        288
+      ],
+      "id": "95eb7054-13c6-4787-8667-b665e876e828",
+      "name": "Webhook",
+      "webhookId": "589d8966-676e-4381-8f8f-a3885c27f1b7"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const data = item.json;\n\n  // --- Safe field extraction\n  const name = data.name ?? \"Unnamed Event\";\n  const date = data.start_date ?? null;       // \"2023-12-04\"\n  const time = data.start_time ?? null;       // \"18:00:00\"\n  const locationRaw = data.location ?? \"Location TBA\";\n  const description = data.description ?? \"No description available.\";\n  const link = data.link ?? \"#\";\n\n  // --- Create formatted date string: \"Dec 4, 18:00\"\n  let dateStr = \"Date TBA\";\n\n  try {\n    if (date && time) {\n      const d = new Date(`${date}T${time}`);\n      const datePart = d.toLocaleDateString(\"en-US\", { month: \"short\", day: \"numeric\" });\n      const timePart = d.toLocaleTimeString(\"en-US\", { hour: \"2-digit\", minute: \"2-digit\", hour12: false });\n      dateStr = `${datePart}, ${timePart}`;\n    } else if (date) {\n      const d = new Date(date);\n      const datePart = d.toLocaleDateString(\"en-US\", { month: \"short\", day: \"numeric\" });\n      dateStr = datePart;\n    }\n  } catch {}\n\n  // --- Only keep the location name (before first comma)\n  const locationName = locationRaw.split(\",\")[0].trim();\n\n  // --- Final formatted message\n  const message =\n`🎉 ${name} | ${dateStr}\n\n${description}\n\n📍 ${locationName}\n🔗 ${link}\n\nFeel free to join, and share it with anyone who might enjoy it 🩵`;\n\n  return { json: { text: message } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "3930e43f-0fa2-4064-b97f-12c2593ca590",
+      "name": "Format Event message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dac10d77-96a9-440b-a1d8-350e144fe254",
+              "leftValue": "={{ $json }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -576,
+        192
+      ],
+      "id": "9426cce4-0f8e-403a-8ee5-f595e11cddc8",
+      "name": "Existing Matches = is Empty"
+    },
+    {
+      "parameters": {
+        "jsCode": "const url = $input.first().json.body.event_link;\n\ntry {\n  if (typeof url !== \"string\") {\n    return [{ valid: false, reason: \"Invalid URL\" }];\n  }\n\n  // Remove everything after \"?\"\n  const cleaned = url.split(\"?\")[0];\n\n  const blockedDomains = [\"youtube.com\", \"youtu.be\", \"tiktok.com\"];\n  const lower = cleaned.toLowerCase();\n\n  if (blockedDomains.some(d => lower.includes(d))) {\n    return [{ valid: false, reason: \"Disallowed domain\" }];\n  }\n\n  return [{ valid: true, url: cleaned }];\n} catch {\n  return [{ valid: false, reason: \"Invalid URL\" }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1824,
+        288
+      ],
+      "id": "061be0c9-afc4-42a5-8756-e847c6dbd373",
+      "name": "Validate URL is from Event"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "event",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6a92a203-b65d-4c74-af1e-4b2b38325a72"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6aeab34f-c2ea-4bd0-997b-b2d83e097cdf",
+                    "leftValue": "={{ $json.content[0].text }}",
+                    "rightValue": "hackathon",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -1024,
+        288
+      ],
+      "id": "c14e93b5-656a-491d-8b95-850b9c0c3250",
+      "name": "Event VS Hackathon"
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "=🧩 DUPLICATE EVENT: {{ $('Validate URL is from Event').item.json.url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -288,
+        288
+      ],
+      "id": "0352466a-47ec-45c1-928b-4ba7c882018b",
+      "name": "Notify: Duplicate Event",
+      "webhookId": "6ba146a7-247c-4a21-800e-514feffa8ba7",
+      "credentials": {
+        "telegramApi": {
+          "id": "FeanDeoLgYviOoLZ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.name }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $('Message a model1').item.json.content[0].text }}"
+            },
+            {
+              "fieldId": "start_date",
+              "fieldValue": "={{ $json.start_date }}"
+            },
+            {
+              "fieldId": "start_time",
+              "fieldValue": "={{ $json.start_time }}"
+            },
+            {
+              "fieldId": "organisers",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.organizer }}"
+            },
+            {
+              "fieldId": "location",
+              "fieldValue": "={{ $json.location }}"
+            },
+            {
+              "fieldId": "format",
+              "fieldValue": "In-Person"
+            },
+            {
+              "fieldId": "link",
+              "fieldValue": "={{ $('Validate URL is from Event').item.json.url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "4939e061-bbbe-44d1-811d-364e41af9c3f",
+      "name": "Create Event row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        224,
+        96
+      ],
+      "id": "10ba8a8d-c2c8-4384-834a-882741443a05",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const raw = $('Scrape a url and get its content').first().json.data.json.location;\n\n  if (!raw || typeof raw !== \"string\") {\n    return { json: { location: null } };\n  }\n\n  // Split by commas\n  const parts = raw.split(\",\").map(p => p.trim());\n  const first = parts[0];\n\n  // Detect a street pattern: ends with a number (e.g. \"Pacellistraße 2\")\n  const looksLikeStreet = /\\b\\d+$/.test(first);\n\n  if (!looksLikeStreet) {\n    // First part is a real venue name\n    return {\n      json: {\n        location: first\n      }\n    };\n  }\n\n  // Otherwise, it's a street → no venue name found\n  return {\n    json: {\n      location: raw\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ],
+      "id": "d71689d0-ea30-488d-9cbc-c804a1d6ace5",
+      "name": "Format: Location"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Pull date from previous node\nconst raw = $('Scrape a url and get its content').first().json.data.json.date;\n\nif (!raw) {\n  return [{\n    json: {\n      start_date: null,\n      start_time: null,\n      error: \"No date provided\"\n    }\n  }];\n}\n\ntry {\n  let dateObj;\n\n  // Detect if a timezone exists\n  const hasTimezone = /[+-]\\d{2}:\\d{2}$/.test(raw) || raw.endsWith(\"Z\");\n\n  if (hasTimezone) {\n    // Parse directly when timezone provided\n    dateObj = new Date(raw);\n  } else {\n    // No timezone → interpret as Europe/Berlin local time\n    const [datePart, timePart] = raw.split(\"T\");\n    const [year, month, day] = datePart.split(\"-\").map(Number);\n    const [hh, mm, ss] = (timePart || \"00:00:00\").split(\":\").map(Number);\n\n    // Step 1: Construct UTC representation\n    const asUTC = new Date(Date.UTC(year, month - 1, day, hh, mm, ss));\n\n    // Step 2: Convert that UTC to actual Berlin local time\n    const berlinString = asUTC.toLocaleString(\"en-US\", { timeZone: \"Europe/Berlin\" });\n    dateObj = new Date(berlinString);\n  }\n\n  // Force valid year\n  if (dateObj.getFullYear() < 2025) {\n    dateObj.setFullYear(2025);\n  }\n\n  // Format into Berlin components\n  const berlinFormatter = new Intl.DateTimeFormat(\"de-DE\", {\n    timeZone: \"Europe/Berlin\",\n    year: \"numeric\",\n    month: \"2-digit\",\n    day: \"2-digit\",\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n    second: \"2-digit\"\n  });\n\n  const parts = berlinFormatter.formatToParts(dateObj);\n  const mapped = Object.fromEntries(parts.map(p => [p.type, p.value]));\n\n  const start_date = `${mapped.year}-${mapped.month}-${mapped.day}`;\n  const start_time = `${mapped.hour}:${mapped.minute}:${mapped.second}`;\n\n  // NEW: Outputs for Google Calendar → based on REAL EVENT DATE\n  const startDateISO = dateObj.toISOString();\n  const startDateObject = dateObj;\n\n  return [{\n    json: {\n      start_date,\n      start_time,\n      timezone: \"Europe/Berlin\",\n      startDateISO,\n      startDateObject,\n    }\n  }];\n\n} catch (err) {\n  return [{\n    json: {\n      start_date: null,\n      start_time: null,\n      error: \"Invalid date format\"\n    }\n  }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "29836e4e-4ac8-4390-af40-60ab478f07f3",
+      "name": "Format: Correct Date & Time"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "events",
+        "limit": 2,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "link",
+              "condition": "eq",
+              "keyValue": "={{ $('Validate URL is from Event').item.json.url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        192
+      ],
+      "id": "bcae6768-5196-48fe-bf80-b5d2974025b2",
+      "name": "Check if exists",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "71d6d24f-74d0-4487-802c-f6c0a2ab09ff",
+      "name": "Send Whatsapp Postable",
+      "webhookId": "851336cd-a927-49da-b259-60bbab9c64e0",
+      "credentials": {
+        "telegramApi": {
+          "id": "FeanDeoLgYviOoLZ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "events",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Create Event row').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "posted_whatsapp",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "25a1a1a3-c26f-437d-b39c-81b02aef9daf",
+      "name": "Mark ✅: Whatsapp Posted",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.data.json.name }}, {{ $json.data.json.description }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "Classify this event as \"event\" or \"hackathon\". Return only one word: event or hackathon."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -1376,
+        288
+      ],
+      "id": "cbe3790a-c68b-484f-9120-34b9f6aa4cb7",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "oqvbpFswd332XV7n",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('Scrape a url and get its content').item.json.data.json.description }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an event-description summarizer. Your task: compress long event descriptions into a single short sentence of maximum 12 words.  Requirements:  Output only the summary sentence.  No emojis, no hashtags, no extra commentary.  Keep it objective, factual, neutral, no hype language.  Focus on the core purpose of the event (e.g., hackathon, workshop, networking).  Avoid dates, location, organizers, or names unless essential.  No filler phrases (“this event is about”).  No quoting text from the input.  Result should be clear, concise, and human-sounding.  If the description is unclear, produce the simplest reasonable guess.  EXAMPLE INPUT → OUTPUT  Input: \"Road to START Hack is a hackathon that brings together 200 innovators from diverse fields and backgrounds to solve real-world challenges in just 24 hours. Participants are encouraged to keep the scope tight, with mentors available to support and guide you whenever needed. The goal is to create a prototype you’ll be proud to share. This event is beginner-friendly and no prior experience is required, bring your ideas and motivation. By the end of the 24 hours, you can say 'hello users' with a demo and a path to continue your project.\"  Output: \"24-hour hackathon to build prototypes with mentors and beginner-friendly support.\"  Return NO exclamation marks"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        96
+      ],
+      "id": "fa31bc5c-ca7b-4415-bb75-f7b298409fde",
+      "name": "Message a model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "oqvbpFswd332XV7n",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "9xlpdltRH5ZH54hL",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/9xlpdltRH5ZH54hL",
+          "cachedResultName": "[HACKATHONS] - Scrape and Insert"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_link": "={{ $('Validate URL is from Event').item.json.url }}"
+          },
+          "matchingColumns": [
+            "event_link"
+          ],
+          "schema": [
+            {
+              "id": "event_link",
+              "displayName": "event_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        384
+      ],
+      "id": "0dc388d2-83a1-4a47-803c-90b1c27adb04",
+      "name": "Call '[HACKATHONS] - Scrape and Insert'"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "7fc5607a442e73671fdc3f5ce2e77f6b2d1c8f6c4b799aea8bebd7c2e7a9b3b5@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Blau Tech 🩵"
+        },
+        "start": "={{ $json.start }}",
+        "end": "={{ $json.end }}",
+        "additionalFields": {
+          "description": "={{ $('Message a model1').item.json.content[0].text }}\n\n{{ $('Validate URL is from Event').item.json.url }}\n\n❄️ Blau Tech \n",
+          "summary": "={{ '🩵 ' + $('Scrape a url and get its content').item.json.data.json.name }}\n"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        192
+      ],
+      "id": "a72d10cd-4760-4487-a39f-7a971cb69f34",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "wvswbEEkQiNPRjfm",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v2/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $json.url }}\",\n  \"formats\": [\n    {\n      \"type\": \"json\",\n      \"prompt\": \"Extract all event information from the page. The output must strictly follow this JSON schema. Guess missing fields if needed. Dates must be ISO format if possible. Ignore marketing fluff and output only clean text.\",\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\n            \"type\": \"string\",\n            \"description\": \"Name of the event\"\n          },\n          \"date\": {\n            \"type\": \"string\",\n            \"description\": \"Start and/or end date of the event in ISO format\"\n          },\n          \"location\": {\n            \"type\": \"string\",\n            \"description\": \"Event location, venue name, address if available\"\n          },\n          \"organizer\": {\n            \"type\": \"string\",\n            \"description\": \"Organizer or host of the event\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"Clean description of the event without markdown\"\n          },\n          \"link\": {\n            \"type\": \"string\",\n            \"description\": \"The event link being scraped\"\n          }\n        },\n        \"required\": [\"name\", \"date\", \"description\", \"link\"],\n        \"additionalProperties\": false\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1600,
+        288
+      ],
+      "id": "935f496e-62d4-449e-8861-d9dca445361c",
+      "name": "Scrape a url and get its content",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3BKsWzvVA0kn4iNA",
+          "name": "Firecrawl API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    // Event fields being sent\n    start: $json.startDateISO,\n    end: new Date(new Date($json.startDateISO).getTime() + 3600000).toISOString(),\n    location: $json.location,\n\n    // Summary & Description broken down\n    summary_raw: $('Scrape a url and get its content').item.json.data?.json?.name,\n    summary_final: '🩵 ' + ($('Scrape a url and get its content').item.json.data?.json?.name),\n\n    description_part1: $('Message a model1').item.json.content?.[0]?.text,\n    description_part2: $('Validate URL is from Event').item.json.url,\n\n    // Full final description\n    description_full:\n      ( $('Message a model1').item.json.content?.[0]?.text ?? '' )\n      + \"\\n\\n\"\n      + ( $('Validate URL is from Event').item.json.url ?? '' )\n      + \"\\n\\n❄️ Blau Tech \\nApache Iceberg meetup…\"\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        192
+      ],
+      "id": "b5347be3-3f7a-4061-8462-0090146de5a4",
+      "name": "Debug 👾: Calendar Payload"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate URL is from Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Event message": {
+      "main": [
+        [
+          {
+            "node": "Send Whatsapp Postable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existing Matches = is Empty": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: Duplicate Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate URL is from Event": {
+      "main": [
+        [
+          {
+            "node": "Scrape a url and get its content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event VS Hackathon": {
+      "main": [
+        [
+          {
+            "node": "Check if exists",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call '[HACKATHONS] - Scrape and Insert'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Event row": {
+      "main": [
+        [
+          {
+            "node": "Format Event message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create Event row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Debug 👾: Calendar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format: Location": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format: Correct Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if exists": {
+      "main": [
+        [
+          {
+            "node": "Existing Matches = is Empty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Whatsapp Postable": {
+      "main": [
+        [
+          {
+            "node": "Mark ✅: Whatsapp Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Event VS Hackathon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Format: Correct Date & Time",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format: Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a url and get its content": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug 👾: Calendar Payload": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "60ada714-7182-4c46-9d6a-b27473803f52",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ae4dc82b123cdeab961c362e25823556fe8945346813dbb3bb8c596bbb8225bd"
+  },
+  "id": "759vPNT3lpMQHY7s",
+  "tags": []
+}

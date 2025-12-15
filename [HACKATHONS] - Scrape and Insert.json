@@ -1,0 +1,592 @@
+{
+  "name": "[HACKATHONS] - Scrape and Insert",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const url = $input.first().json.event_link\n\ntry {\n  if (typeof url !== \"string\") {\n    return [{ valid: false, reason: \"Invalid URL\" }];\n  }\n\n  // Remove everything after \"?\"\n  const cleaned = url.split(\"?\")[0];\n\n  const blockedDomains = [\"youtube.com\", \"youtu.be\", \"tiktok.com\"];\n  const lower = cleaned.toLowerCase();\n\n  if (blockedDomains.some(d => lower.includes(d))) {\n    return [{ valid: false, reason: \"Disallowed domain\" }];\n  }\n\n  return [{ valid: true, url: cleaned }];\n} catch {\n  return [{ valid: false, reason: \"Invalid URL\" }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        192
+      ],
+      "id": "e7d7c572-dbbc-46ad-81e8-a289fb9a7b22",
+      "name": "Validate URL"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "hackathons",
+        "limit": 2,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "link",
+              "condition": "eq",
+              "keyValue": "={{ $json.url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        192
+      ],
+      "id": "3ed36f72-5456-416b-b212-4e37af68347e",
+      "name": "Hackathon exists?",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "=🚀 DUPLICATE HACKATHON: {{ $('Validate URL').item.json.url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        288
+      ],
+      "id": "91a5a82e-71e2-4906-8b31-463060e5f954",
+      "name": "Message: Duplicate Hackathon",
+      "webhookId": "a34dbb12-c54c-4c64-9536-14d39b1da6dc",
+      "credentials": {
+        "telegramApi": {
+          "id": "FeanDeoLgYviOoLZ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a4754060-52ef-4e8f-90fb-4b6b0170e1bc",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        192
+      ],
+      "id": "7367565e-bbf3-487d-a68a-d239840c66b9",
+      "name": "no duplicates?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const raw = $('Scrape a url and get its content').first().json.data.json.location;\n\n  if (!raw || typeof raw !== \"string\") {\n    return { json: { location: null } };\n  }\n\n  // Split by commas\n  const parts = raw.split(\",\").map(p => p.trim());\n  const first = parts[0];\n\n  // Detect a street pattern: ends with a number (e.g. \"Pacellistraße 2\")\n  const looksLikeStreet = /\\b\\d+$/.test(first);\n\n  if (!looksLikeStreet) {\n    // First part is a real venue name\n    return {\n      json: {\n        location: first\n      }\n    };\n  }\n\n  // Otherwise, it's a street → no venue name found\n  return {\n    json: {\n      location: raw\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        192
+      ],
+      "id": "782a89fa-7fed-47cf-9b27-ece421b96e67",
+      "name": "Format Location"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        352,
+        96
+      ],
+      "id": "daf7c938-59db-4c40-a37f-5bed19cb8394",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "tableId": "hackathons",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.name }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $json.content[0].text }}"
+            },
+            {
+              "fieldId": "start_date",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.start_date }}"
+            },
+            {
+              "fieldId": "start_time",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.start_time }}"
+            },
+            {
+              "fieldId": "end_date",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.end_date }}"
+            },
+            {
+              "fieldId": "end_time",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.end_time }}"
+            },
+            {
+              "fieldId": "prizes",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.prizes }}"
+            },
+            {
+              "fieldId": "organisers",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.organisers }}"
+            },
+            {
+              "fieldId": "link",
+              "fieldValue": "={{ $('Validate URL').item.json.url }}"
+            },
+            {
+              "fieldId": "signup_deadline",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.signup_deadline }}"
+            },
+            {
+              "fieldId": "location",
+              "fieldValue": "={{ $json.location }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        576,
+        96
+      ],
+      "id": "a5152c7d-07f9-4c5d-9f38-6eee6a1e1ab0",
+      "name": "Create Hackathon row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const e = item.json;\n\n  // --- Safe fields\n  const name = e.name ?? \"Unnamed Hackathon\";\n  const description = e.description ?? \"No description available.\";\n  const startDate = e.start_date ?? \"Date TBA\";\n  const startTime = e.start_time ?? \"\";\n  const endDate = e.end_date ?? \"\";\n  const endTime = e.end_time ?? \"\";\n  const location = e.location ?? \"Location TBA\";\n  const organisers = e.organisers ?? \"Organisers TBA\";\n  const link = e.link ?? \"#\";\n  const signupDeadline = e.signup_deadline ?? null;\n  const prizes = e.prizes;\n\n  // --- Helpers\n  function formatDate(d) {\n    try {\n      return new Date(d).toLocaleDateString(\"en-US\", {\n        month: \"short\",\n        day: \"numeric\"\n      });\n    } catch {\n      return d;\n    }\n  }\n\n  const sd = formatDate(startDate);\n  const ed = endDate ? formatDate(endDate) : null;\n\n  const st = startTime ? startTime.slice(0, 5) : \"\";\n  const et = endTime ? endTime.slice(0, 5) : \"\";\n\n  // --- Date line\n  let dateLine = `${sd}`;\n  if (st) dateLine += `, ${st}`;\n  if (ed) dateLine += `  →  ${ed}`;\n  if (et) dateLine += `, ${et}`;\n\n  // --- Optional lines\n  const prizeLine = prizes\n    ? `🏆 Prizes: ${prizes}`\n    : `🏆 Prizes: To be revealed...`;\n\n  const deadlineLine = signupDeadline\n    ? `🗓️ Deadline: ${formatDate(signupDeadline)}`\n    : null;\n\n  // --- EXACT WhatsApp structure\n  let final = `NEW HACKATHON ALERT 🔥🚀\\n\\n`;\n  final += `*🧩 ${name}*\\n`;\n  final += `📅 ${dateLine}\\n`;\n  final += `📍 ${location}\\n`;\n  final += `👥 ${organisers}\\n\\n`;\n  final += `✨ ${description}\\n\\n`;\n  final += `${prizeLine}\\n`;\n  if (deadlineLine) final += `${deadlineLine}\\n\\n`;\n  else final += `\\n`; // preserve spacing if no deadline\n  final += `🔗 Apply: ${link}\\n\\n`;\n  final += `— Share this with Everyone you know! 🙌🩵`\n\n  return {\n    json: {\n      formatted: final\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        96
+      ],
+      "id": "89448604-7951-4117-b4e0-b3e727af4c1c",
+      "name": "Format Hackathon Post"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "hackathons",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Create Hackathon row').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "posted_whatsapp",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "4922ca78-ca0b-4c0d-b252-a67d7bcc6e7b",
+      "name": "Check ✅: Posted WhatsApp",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "={{ $json.formatted }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "a3c1a0d1-5458-4cbb-9f1c-ea431e8e1846",
+      "name": "Hackathon WhatsApp message",
+      "webhookId": "553c0b9d-8d1e-4f1b-a694-fc6bc4f1aae7",
+      "credentials": {
+        "telegramApi": {
+          "id": "FeanDeoLgYviOoLZ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.data.json.description }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are a concise assistant that summarizes hackathon descriptions.  Your task: - You receive a single hackathon description as plain text. - If the description has **30 words or fewer**, return it **unchanged**. - If the description has **more than 30 words**, summarize it into a **short, clear description of max 20 words**.  Content rules: - Focus on: theme/focus of the hackathon, target participants, and main goal or outcome. - Do NOT add information that is not in the original text. - Do NOT use markdown, emojis, or bullet points. - Output only the final text, with no explanations or labels."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f6cda299-89e2-438c-9047-d6af89d9e0d6",
+      "name": "Summarise Description",
+      "credentials": {
+        "anthropicApi": {
+          "id": "oqvbpFswd332XV7n",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "event_link"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1120,
+        192
+      ],
+      "id": "48257d27-c3bf-468e-90c9-e79c309ffdaf",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v2/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $('Validate URL').item.json.url }}\",\n  \"formats\": [\n    {\n      \"type\": \"json\",\n      \"prompt\": \"Extract hackathon information from the webpage and return JSON strictly matching the provided schema. Rules: - All fields except “prizes” and “signup_deadline” must be extracted and cannot be null. - If “prizes” or “signup_deadline” are not present on the page, return null. - Convert dates to ISO format (YYYY-MM-DD) whenever possible. - Convert times to 24h format (HH:MM). - Do not hallucinate or infer details — only return what appears explicitly on the page. - “description” must be a clean 1–3 sentence summary without markdown. - “organisers” must list companies, organizations, or institutions hosting the hackathon. - “signup_link” must be the main Apply/Register button (CTA) on the page. - Return only the JSON object defined by the schema.\",\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": { \n            \"type\": \"string\",\n            \"description\": \"Official name of the hackathon\"\n          },\n          \"description\": { \n            \"type\": \"string\",\n            \"description\": \"Short, clean description of the hackathon with no markdown\"\n          },\n          \"start_date\": { \n            \"type\": \"string\",\n            \"description\": \"Start date of the hackathon in ISO format (YYYY-MM-DD) if possible\"\n          },\n          \"start_time\": { \n            \"type\": \"string\",\n            \"description\": \"Start time in 24h format (HH:MM)\"\n          },\n          \"end_date\": { \n            \"type\": \"string\",\n            \"description\": \"End date of the hackathon in ISO format (YYYY-MM-DD) if possible\"\n          },\n          \"end_time\": { \n            \"type\": \"string\",\n            \"description\": \"End time in 24h format (HH:MM)\"\n          },\n          \"location\": {\n            \"type\": \"string\",\n            \"description\": \"Event location, city or venue name if available\"\n          },\n          \"organisers\": { \n            \"type\": \"string\",\n            \"description\": \"Organizer(s) or host(s) of the hackathon\"\n          },\n          \"signup_link\": { \n            \"type\": \"string\",\n            \"description\": \"Registration or application link for the hackathon\"\n          },\n          \"prizes\": { \n            \"type\": [\"string\",\"null\"],\n            \"description\": \"What winners receive; null if not provided\"\n          },\n          \"signup_deadline\": { \n            \"type\": [\"string\",\"null\"],\n            \"description\": \"Signup or registration deadline in ISO format; null if not stated\"\n          },\n          \"link\": {\n            \"type\": \"string\",\n            \"description\": \"The hackathon page URL being scraped\"\n          }\n        },\n        \"required\": [\n          \"name\",\n          \"description\",\n          \"start_date\",\n          \"start_time\",\n          \"end_date\",\n          \"end_time\",\n          \"location\",\n          \"organisers\",\n          \"signup_link\",\n          \"link\"\n        ]\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        80
+      ],
+      "id": "c180eacc-a23a-42ff-ae78-a475e3e9677f",
+      "name": "Scrape a url and get its content",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3BKsWzvVA0kn4iNA",
+          "name": "Firecrawl API Key"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "event_link": "https://luma.com/yyvxm23c"
+        }
+      }
+    ],
+    "Validate URL": [
+      {
+        "json": {
+          "valid": true,
+          "url": "https://luma.com/yyvxm23c"
+        }
+      }
+    ],
+    "Merge": [
+      {
+        "json": {
+          "content": [
+            {
+              "type": "text",
+              "text": "2-day robotics hackathon with hands-on LeRobot SO-101 arms exploring robot-learning for experienced builders and motivated beginners."
+            }
+          ],
+          "location": "Walter-Gropius-Straße 17, München, Bayern"
+        },
+        "binary": {}
+      }
+    ],
+    "Scrape a url and get its content": [
+      {
+        "json": {
+          "success": true,
+          "data": {
+            "metadata": {
+              "og:title": "Munich AI Robotics Hackathon: Powered by RoboTUM · Luma",
+              "ogUrl": "https://luma.com/yyvxm23c",
+              "twitter:card": "summary_large_image",
+              "language": "en",
+              "twitter:image": "https://og.luma.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,anim=false,background=white,quality=75,width=800,height=419/api/event-one?calendar_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Fcommunity_avatar_10.png&calendar_name&color0=%23fcf9f3&color1=%23bfb093&color2=%235c645c&host_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Favatar_42.png&host_name=Adrian%20Mersini&img=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1667123113124-0980f3214baa%3Fcrop%3Dentropy%26cs%3Dtinysrgb%26fit%3Dmax%26fm%3Djpg%26ixid%3DM3wxMjQyMjF8MHwxfHNlYXJjaHwxMXx8cm9ib3RpYyUyMGFybXxlbnwwfHx8fDE3NjM2Nzc2ODd8Mg%26ixlib%3Drb-4.1.0%26q%3D80%26w%3D1080&name=Munich%20AI%20Robotics%20Hackathon%3A%20Powered%20by%20RoboTUM",
+              "image": "https://og.luma.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,anim=false,background=white,quality=75,width=800,height=419/api/event-one?calendar_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Fcommunity_avatar_10.png&calendar_name&color0=%23fcf9f3&color1=%23bfb093&color2=%235c645c&host_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Favatar_42.png&host_name=Adrian%20Mersini&img=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1667123113124-0980f3214baa%3Fcrop%3Dentropy%26cs%3Dtinysrgb%26fit%3Dmax%26fm%3Djpg%26ixid%3DM3wxMjQyMjF8MHwxfHNlYXJjaHwxMXx8cm9ib3RpYyUyMGFybXxlbnwwfHx8fDE3NjM2Nzc2ODd8Mg%26ixlib%3Drb-4.1.0%26q%3D80%26w%3D1080&name=Munich%20AI%20Robotics%20Hackathon%3A%20Powered%20by%20RoboTUM",
+              "og:description": "🤖 Robotics Weekend Hackathon: December 6-7 in Munich\nReal robot arms. Real learning. Real fun. 100% free.\nRoboTUM is hosting a high-energy 2-day robotics…",
+              "og:url": "https://luma.com/yyvxm23c",
+              "mobile-web-app-capable": "yes",
+              "title": "Munich AI Robotics Hackathon: Powered by RoboTUM · Luma",
+              "ogTitle": "Munich AI Robotics Hackathon: Powered by RoboTUM · Luma",
+              "description": "🤖 Robotics Weekend Hackathon: December 6-7 in Munich\nReal robot arms. Real learning. Real fun. 100% free.\nRoboTUM is hosting a high-energy 2-day robotics…",
+              "ogDescription": "🤖 Robotics Weekend Hackathon: December 6-7 in Munich\nReal robot arms. Real learning. Real fun. 100% free.\nRoboTUM is hosting a high-energy 2-day robotics…",
+              "og:image:width": "800",
+              "robots": "noindex",
+              "viewport": "width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no,shrink-to-fit=no,viewport-fit=cover",
+              "apple-itunes-app": "app-id=1546150895, app-argument=luma://event/evt-3DUDtVavG3cdDlS",
+              "sentry-trace": "762a0c6c8bca85fd8e73cce712c8a22e-436c24a90314a19d",
+              "baggage": "sentry-environment=vercel-production,sentry-release=05a4883fd1a0ed59c3615d1f993c0eef2898a733,sentry-public_key=d4590a2b63da41fa80cd30c525a24bda,sentry-trace_id=762a0c6c8bca85fd8e73cce712c8a22e,sentry-org_id=370968",
+              "og:image:height": "419",
+              "theme-color": "#ebf6ff",
+              "twitter:description": "🤖 Robotics Weekend Hackathon: December 6-7 in Munich\nReal robot arms. Real learning. Real fun. 100% free.\nRoboTUM is hosting a high-energy 2-day robotics…",
+              "og:type": "article",
+              "twitter:title": "Munich AI Robotics Hackathon: Powered by RoboTUM · Luma",
+              "ogImage": "https://og.luma.com/cdn-cgi/image/format=auto,fit=cover,dpr=1,anim=false,background=white,quality=75,width=800,height=419/api/event-one?calendar_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Fcommunity_avatar_10.png&calendar_name&color0=%23fcf9f3&color1=%23bfb093&color2=%235c645c&host_avatar=https%3A%2F%2Fcdn.lu.ma%2Favatars-default%2Favatar_42.png&host_name=Adrian%20Mersini&img=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1667123113124-0980f3214baa%3Fcrop%3Dentropy%26cs%3Dtinysrgb%26fit%3Dmax%26fm%3Djpg%26ixid%3DM3wxMjQyMjF8MHwxfHNlYXJjaHwxMXx8cm9ib3RpYyUyMGFybXxlbnwwfHx8fDE3NjM2Nzc2ODd8Mg%26ixlib%3Drb-4.1.0%26q%3D80%26w%3D1080&name=Munich%20AI%20Robotics%20Hackathon%3A%20Powered%20by%20RoboTUM",
+              "favicon": "https://luma.com/favicon.ico",
+              "scrapeId": "019ae5c6-bc44-715f-a8bf-c3481d60696e",
+              "sourceURL": "https://luma.com/yyvxm23c",
+              "url": "https://luma.com/yyvxm23c",
+              "statusCode": 200,
+              "contentType": "text/html; charset=utf-8",
+              "proxyUsed": "basic",
+              "cacheState": "hit",
+              "cachedAt": "2025-12-03T19:24:34.343Z",
+              "creditsUsed": 5
+            },
+            "json": {
+              "name": "Munich AI Robotics Hackathon: Powered by RoboTUM",
+              "description": "RoboTUM is hosting a high-energy 2-day robotics hackathon where teams will work hands-on with LeRobot SO-101 robotic arms and explore modern robot-learning techniques. This event is open to both experienced builders and highly motivated beginners.",
+              "start_date": "2023-12-06",
+              "start_time": "10:00",
+              "end_date": "2023-12-07",
+              "end_time": "10:00",
+              "location": "Walter-Gropius-Straße 17, München, Bayern",
+              "organisers": "Adrian Mersini, Pasha Rizali, Andy Kohlmann, Ellen Hemme",
+              "signup_link": "https://luma.com/user/usr-PuRUPgOqwnvGFM6",
+              "prizes": null,
+              "signup_deadline": null,
+              "link": "https://luma.com/user/usr-PuRUPgOqwnvGFM6"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Validate URL": {
+      "main": [
+        [
+          {
+            "node": "Hackathon exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hackathon exists?": {
+      "main": [
+        [
+          {
+            "node": "no duplicates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "no duplicates?": {
+      "main": [
+        [
+          {
+            "node": "Scrape a url and get its content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message: Duplicate Hackathon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Location": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create Hackathon row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Hackathon row": {
+      "main": [
+        [
+          {
+            "node": "Format Hackathon Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Hackathon Post": {
+      "main": [
+        [
+          {
+            "node": "Hackathon WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hackathon WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Check ✅: Posted WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarise Description": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a url and get its content": {
+      "main": [
+        [
+          {
+            "node": "Format Location",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Summarise Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "87f21126-2342-47f2-9a0e-993a88c99088",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ae4dc82b123cdeab961c362e25823556fe8945346813dbb3bb8c596bbb8225bd"
+  },
+  "id": "9xlpdltRH5ZH54hL",
+  "tags": []
+}

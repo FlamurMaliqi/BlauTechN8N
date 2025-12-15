@@ -1,0 +1,540 @@
+{
+  "name": "[SCHOLARSHIPS] - Extract & Message",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8e521ce6-0920-44b4-9375-b6ba6f2f38aa",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1120,
+        288
+      ],
+      "id": "3cbc4c5a-dc1f-45ab-8720-303f132a3cd0",
+      "name": "Webhook",
+      "webhookId": "8e521ce6-0920-44b4-9375-b6ba6f2f38aa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputUrl = $input.first().json.body.scholarship_link ?? \"\";\n\nlet cleaned = inputUrl;\n\ntry {\n  const u = new URL(inputUrl);\n  u.search = \"\";   // remove ?query\n  u.hash = \"\";     // remove #fragment (optional)\n  cleaned = u.toString();\n} catch (e) {}\n\n// Return ONLY the cleaned URL to next node\nreturn [\n  {\n    json: {\n      url: cleaned\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        288
+      ],
+      "id": "38798e63-6063-45b0-b503-a7d40587ae2f",
+      "name": "clean URL"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "scholarships",
+        "limit": 2,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "url",
+              "condition": "eq",
+              "keyValue": "={{ $json.url }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        288
+      ],
+      "id": "41431ca2-ebad-4bf5-ad88-161603a8d32d",
+      "name": "Get Duplicate Scholarships",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5d9f3b7d-2771-48ce-a03c-971f2c9368ee",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -448,
+        288
+      ],
+      "id": "d53dff99-2357-4c27-a8e4-698eb5c15c33",
+      "name": "Is Empty (No Duplicates)?"
+    },
+    {
+      "parameters": {
+        "tableId": "scholarships",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.name }}"
+            },
+            {
+              "fieldId": "provider",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.provider }}"
+            },
+            {
+              "fieldId": "short_description",
+              "fieldValue": "={{ $json.content[0].text }}"
+            },
+            {
+              "fieldId": "url",
+              "fieldValue": "={{ $('clean URL').item.json.url }}"
+            },
+            {
+              "fieldId": "deadline",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.deadline }}"
+            },
+            {
+              "fieldId": "study_level",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.study_level }}"
+            },
+            {
+              "fieldId": "fields_of_study",
+              "fieldValue": "={{ $('Scrape a url and get its content').item.json.data.json.fields_of_study }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        352,
+        0
+      ],
+      "id": "8ce78a28-6b9f-41ed-bd5d-c6093d68a66c",
+      "name": "Insert Scholarship",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "### Adapt schema so that it is detailed\n",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -320,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "1afe1f21-d42b-458f-a855-34b7e29e95a5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "scholarships",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Insert Scholarship').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "posted_whatsapp",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "84b2cfba-ed8a-4282-b5a9-186ad72cfd8f",
+      "name": "Check ✅: Posted WhatsApp",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8344150610",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "c2849bbb-a852-426f-86b3-33194d56b313",
+      "name": "Send Scholarship Message",
+      "webhookId": "479f687a-b9e5-407e-bfd3-5b2fa68c3680",
+      "credentials": {
+        "telegramApi": {
+          "id": "hKa49vts44OMUkC7",
+          "name": "Flamur Scholarships"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Run Once For All Items\nconst item = $input.first().json;\n\n// --- Escape ONLY critical MarkdownV2 characters ---\nfunction escapeLite(text) {\n  return String(text)\n    .replace(/([*_`\\[\\]()])/g, '\\\\$1');   // only the core troublemakers\n}\n\n// --- Extract fields ---\nconst title = escapeLite(item.title ?? \"Unnamed Scholarship\");\nconst provider = escapeLite(item.provider ?? \"Unknown Provider\");\nconst description = item.short_description ?? \"No description available.\";\n\nconst deadline = item.formatted_date ?? \"Date TBA\";\n\n// Already formatted externally\nconst studyLevels = item.study_level_formatted ?? \"Not specified\";\nconst fields = item.fields_of_study_formatted ?? \"Not specified\";\nconst funding = item.funding_types_formatted ?? \"Not specified\";\n\n// --- Build message (NO over escaping here) ---\nconst formatted =\n  `🎓 *${title}*\\n` +\n  `🏛️ ${provider}\\n` +\n  `📅 Deadline: ${deadline}\\n` +\n  `🎯 Study Level: ${studyLevels}\\n` +\n  `📘 Fields of Study: ${fields}\\n` +\n  `💠 Funding Types: ${funding}\\n\\n` +\n  `✨ *About the Scholarship*\\n` +\n  `${description}`;\n\n// --- Return output ---\nreturn [\n  {\n    json: {\n      message: formatted\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        96
+      ],
+      "id": "656e2130-c3a9-4dab-b9e7-ce4868313244",
+      "name": "Format Scholarship Post",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const data = $input.first().json.data.json;\n\n  const study = data.study_level ?? [];\n  const funding = data.funding_types ?? [];\n  const fields = data.fields_of_study ?? [];\n\n  // Helper to format arrays → \"A, B\"\n  const formatList = (arr) => {\n    if (!Array.isArray(arr) || arr.length === 0) return \"TBA\";\n    return arr\n      .map(l => l.replace(/s$/i, \"\"))  // optional: Masters → Master\n      .join(\", \");\n  };\n\n  return {\n    json: {\n      study_level_formatted: formatList(study),\n      funding_types_formatted: formatList(funding),\n      fields_of_study_formatted: formatList(fields)\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        384
+      ],
+      "id": "caad017a-36c6-4102-a35e-899b8d2b8001",
+      "name": "Format Fields of Study"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const iso = $input.first().json.data.json.deadline;\n\n  const d = new Date(iso);\n\n  const formatted = d.toLocaleDateString(\"en-US\", {\n    month: \"short\",\n    day: \"numeric\",\n    year: \"numeric\"\n  }).replace(\",\", \"\"); // removes comma after month → \"Nov 28 2025\"\n\n  // Insert period after month (Nov.)\n  const parts = formatted.split(\" \");\n  const final = `${parts[0]}. ${parts[1]}, ${parts[2]}`;\n\n  return {\n    json: {\n      formatted_date: final\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        192
+      ],
+      "id": "b9fb39f7-3a8e-48dd-afda-a162633f6c9f",
+      "name": "Format Date"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        576,
+        80
+      ],
+      "id": "a6e3c982-8a5e-4087-b36c-3cd58ebb7f9e",
+      "name": "Wait for Supabase Insert"
+    },
+    {
+      "parameters": {
+        "chatId": "8344150610",
+        "text": "=🧑‍🏫 DUPLICATE SCHOLARSHIP: {{ $('clean URL').item.json.url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        384
+      ],
+      "id": "27d698ca-ca6c-489b-bfeb-50397992e704",
+      "name": "Send a text message",
+      "webhookId": "b9f0d67a-8161-4712-8cdd-a2a25df366c0",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "hKa49vts44OMUkC7",
+          "name": "Flamur Scholarships"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.data.json.description }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an assistant that rewrites scholarship descriptions to be shorter, clearer, and more concise, while keeping every important piece of information.  Your goals: - Keep all key facts: who the scholarship is for, what it offers, eligibility criteria, deadlines, benefits, study level, and purpose. - Remove filler text, marketing language, long introductions, and repeated information. - Maintain a professional and neutral tone suitable for students and young professionals. - Do not add new details. Do not remove important details. - The final result should be 30–40% shorter than the original text. - Write in clear, simple English.  At the end, return only the shortened description — no explanations, no commentary.  NO Bullet Points, ONLY text  DON'T KEEP IT AS ONLY 1 PARAGRAPH, INTRODUCE NEWLINES WHERE NEEDED. ANSWER IN ENGLISH"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "32dba8b5-1c3e-422b-97a2-a35d8a7d9298",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "oqvbpFswd332XV7n",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v2/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $('clean URL').item.json.url }}\",\n  \"formats\": [\n    {\n      \"type\": \"json\",\n      \"prompt\": \"You are extracting structured data from a webpage that describes a scholarship in Germany, primarily in the fields of technology, engineering, business, or related domains. Your task is to read the entire page and return ONLY the fields defined in the JSON schema:  name (official title of the scholarship)  provider (organisation, university, foundation, company, or program offering it)  description (short, factual summary of what the scholarship offers and who it is for)  deadline (the application deadline; if multiple, choose the primary or earliest)  study_level (ARRAY containing any of the following: \\\"Bachelor\\\", \\\"Masters\\\", \\\"PhD\\\")  fields_of_study (ARRAY of concise subject categories)  funding_types (ARRAY of support types such as \\\"financial support\\\", \\\"mentoring\\\", \\\"networking\\\", \\\"workshops\\\"). IMPORTANT RULES FOR study_level: The output MUST be an array. The ONLY allowed values are: \\\"Bachelor\\\", \\\"Masters\\\", \\\"PhD\\\". If multiple study levels apply, include all of them in the array. Do NOT output \\\"Multiple\\\", \\\"All levels\\\", \\\"undergraduate\\\", \\\"postgraduate\\\", or any free-text variations. Map common phrases: \\\"undergraduate\\\" → \\\"Bachelor\\\" \\\"graduate\\\" or \\\"postgraduate\\\" → \\\"Masters\\\" \\\"doctoral\\\" or \\\"PhD candidates\\\" → \\\"PhD\\\" If nothing is found, return an empty array. RULES FOR fields_of_study: The output MUST be an array. The ONLY allowed values are: \\\"Computer Science\\\", \\\"Robotics\\\", \\\"Business\\\", \\\"AI\\\", \\\"Other\\\". fields_of_study may be overlapping. A single scholarship may belong to multiple categories simultaneously. Map website terminology to these categories as follows: Computer science, informatics, software engineering, programming → \\\"Computer Science\\\" Automation, autonomous systems, mechanical control systems, robotics labs → \\\"Robotics\\\" Artificial intelligence, machine learning, data science, neural networks → \\\"AI\\\" Business administration, management, entrepreneurship, economics → \\\"Business\\\" Any field not fitting the above categories → \\\"Other\\\" If unclear, return an empty array. RULES FOR funding_types: Return short category labels such as: \\\"financial support\\\", \\\"mentoring\\\", \\\"networking\\\", \\\"workshops\\\", \\\"research funding\\\", \\\"travel grant\\\", \\\"tuition waiver\\\". No full sentences. GENERAL GUIDELINES: Extract only factual information. No marketing language. Combine information from paragraphs, tables, lists, or headings. Normalise all outputs for consistency and cleanliness. Do NOT invent information. Missing fields must be present but contain empty strings or empty arrays. Return ONLY the JSON object defined by the schema, with no additional explanation.\",\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\n            \"type\": \"string\",\n            \"description\": \"Official name/title of the scholarship\"\n          },\n          \"provider\": {\n            \"type\": \"string\",\n            \"description\": \"Organising institution, foundation, company or university\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"Short overview of what the scholarship offers\"\n          },\n          \"deadline\": {\n            \"type\": \"string\",\n            \"description\": \"Application deadline, ideally in ISO or plain date format\"\n          },\n          \"study_level\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"enum\": [\"Bachelor\", \"Masters\", \"PhD\"]\n            }\n          },\n          \"fields_of_study\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"enum\": [\"Computer Science\", \"Robotics\", \"Business\", \"AI\", \"Other\"]\n            }\n          },\n          \"funding_types\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          }\n        },\n        \"required\": [\"name\", \"provider\", \"description\", \"deadline\", \"study_level\", \"fields_of_study\", \"funding_types\"],\n        \"additionalProperties\": false\n      }\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -224,
+        144
+      ],
+      "id": "46520375-7b93-4b7e-a70b-713516b634c5",
+      "name": "Scrape a url and get its content",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3BKsWzvVA0kn4iNA",
+          "name": "Firecrawl API Key"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "body": {
+            "scholarship_link": "https://luma.com/r197bqe6?tk=BIwLJ8"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "clean URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean URL": {
+      "main": [
+        [
+          {
+            "node": "Get Duplicate Scholarships",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Duplicate Scholarships": {
+      "main": [
+        [
+          {
+            "node": "Is Empty (No Duplicates)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Empty (No Duplicates)?": {
+      "main": [
+        [
+          {
+            "node": "Scrape a url and get its content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Scholarship": {
+      "main": [
+        [
+          {
+            "node": "Wait for Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Scholarship Message": {
+      "main": [
+        [
+          {
+            "node": "Check ✅: Posted WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Scholarship Post": {
+      "main": [
+        [
+          {
+            "node": "Send Scholarship Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Date": {
+      "main": [
+        [
+          {
+            "node": "Wait for Supabase Insert",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Fields of Study": {
+      "main": [
+        [
+          {
+            "node": "Wait for Supabase Insert",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wait for Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Format Scholarship Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Insert Scholarship",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a url and get its content": {
+      "main": [
+        [
+          {
+            "node": "Format Fields of Study",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Date",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "14e61a3b-07e6-4d83-bb2d-77b74397584f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ae4dc82b123cdeab961c362e25823556fe8945346813dbb3bb8c596bbb8225bd"
+  },
+  "id": "ynylTUaKQDzNxVvs",
+  "tags": []
+}
