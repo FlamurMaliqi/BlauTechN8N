@@ -1,0 +1,263 @@
+{
+  "name": "[Student Clubs] - Link to DB entry",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "22dc92e9-366b-41c1-9d88-35ea11552292",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "43f43cde-28b0-4bd8-8107-356eb4b127a1",
+      "name": "Webhook",
+      "webhookId": "22dc92e9-366b-41c1-9d88-35ea11552292"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "student_clubs",
+        "limit": 2,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "link",
+              "condition": "eq",
+              "keyValue": "={{ $json.link }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cbe104ca-daaa-4615-a7f6-72214c575441",
+      "name": "Check existing Club by link",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "267f2590-6320-467e-aaea-bd5e33039820",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d83922a0-9e91-480f-86cf-103157f82c2d",
+      "name": "New Entry?"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $('Webhook').item.json.link }}",
+        "scrapeOptions": {
+          "options": {
+            "formats": {
+              "format": [
+                {
+                  "type": "json",
+                  "prompt": "You are extracting structured data about a STUDENT CLUB or STUDENT ORGANIZATION from a website.  Your task is to determine whether the page represents a student club. If it does, extract the following fields accurately and conservatively.  IMPORTANT RULES: - NONE of the fields may be null. - If information is missing or unclear:   - Use an empty string \"\" for text fields   - Use an empty array [] for array fields - Do NOT hallucinate information. - Universities must ALWAYS be returned as an ARRAY of UNIVERSITY ACRONYMS ONLY.   - Examples: TUM, LMU, KIT, RWTH, ETH, EPFL   - Do NOT return full university names.   - If the acronym is not explicitly stated or cannot be inferred with high confidence, omit it. - Topics must ALWAYS be returned as an ARRAY. - Topics may intersect (multiple values allowed). - Topics MUST be chosen ONLY from the allowed list. - If the website is NOT a student club, return empty values for ALL fields.  Fields to extract: - name: Official name of the student club - description: Short factual description (1–3 sentences) - universities: List of university acronyms the club is affiliated with - topics: List of relevant topics from the allowed list - link: Canonical homepage URL of the club  Allowed topics (ONLY these values are valid): AI Business Robotics Software Legal Data Science Product Design Cybersecurity Finance Blockchain Language Culture Sustainability Entrepreneurship Health Education Gaming  Return the result strictly in the JSON format defined by the provided schema.",
+                  "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\",\n      \"description\": \"Official name of the student club or organization. Empty string if unknown.\"\n    },\n    \"description\": {\n      \"type\": \"string\",\n      \"description\": \"Short factual description of the club (1–3 sentences). Empty string if not available.\"\n    },\n    \"universities\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\",\n        \"pattern\": \"^[A-Z0-9]{2,10}$\"\n      },\n      \"description\": \"List of university acronyms (e.g. TUM, LMU, KIT). Must be acronyms only. Empty array if none found.\"\n    },\n    \"topics\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\",\n        \"enum\": [\n          \"AI\",\n          \"Business\",\n          \"Robotics\",\n          \"Software\",\n          \"Legal\",\n          \"Data Science\",\n          \"Product\",\n          \"Design\",\n          \"Cybersecurity\",\n          \"Finance\",\n          \"Blockchain\",\n          \"Language\",\n          \"Culture\",\n          \"Sustainability\",\n          \"Entrepreneurship\",\n          \"Health\",\n          \"Education\",\n          \"Gaming\"\n        ]\n      },\n      \"description\": \"Topics associated with the club. Must only use allowed values. Empty array if none apply.\"\n    },\n    \"link\": {\n      \"type\": \"string\",\n      \"description\": \"Canonical homepage URL of the student club. Empty string if unavailable.\"\n    }\n  },\n  \"required\": [\"name\", \"description\", \"universities\", \"topics\", \"link\"],\n  \"additionalProperties\": false\n}\n"
+                }
+              ]
+            },
+            "headers": {},
+            "timeout": 60000
+          }
+        },
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1,
+      "position": [
+        688,
+        -128
+      ],
+      "id": "0aac7d15-2fb8-4c7f-a025-cc9f346a3c1a",
+      "name": "Scrape student club website",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "INbo4IriyypPd6OA",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "student_clubs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $json.data.json.name }}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{ $json.data.json.description }}"
+            },
+            {
+              "fieldId": "universities",
+              "fieldValue": "={{ $json.data.json.universities }}"
+            },
+            {
+              "fieldId": "topics",
+              "fieldValue": "={{ $json.data.json.topics }}"
+            },
+            {
+              "fieldId": "link",
+              "fieldValue": "={{ $('Webhook').item.json.link }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -128
+      ],
+      "id": "e816e140-1011-4f4e-9c3a-0045d6b22b5b",
+      "name": "add student club",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2BNeDCEjFD4pIM6Q",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6541342997",
+        "text": "=🩵 Student Club inserted 🔥\n\n{{ $json.name }}\n{{ $('Webhook').item.json.link }}\n\nDas tuff nigga 😮‍💨",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -128
+      ],
+      "id": "faef537e-5a06-486e-bd05-f8371a5bd915",
+      "name": "Send a text message",
+      "webhookId": "55cf8fa6-627e-4863-bbe7-6d9862259abe",
+      "credentials": {
+        "telegramApi": {
+          "id": "JzYkgujwK3OPSjXJ",
+          "name": "Student Clubs Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "link": "https://www.tuinvest.de/"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check existing Club by link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check existing Club by link": {
+      "main": [
+        [
+          {
+            "node": "New Entry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Entry?": {
+      "main": [
+        [
+          {
+            "node": "Scrape student club website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape student club website": {
+      "main": [
+        [
+          {
+            "node": "add student club",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add student club": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aedef099-0f18-44ec-a42f-6cf1b0bdb7f9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ae4dc82b123cdeab961c362e25823556fe8945346813dbb3bb8c596bbb8225bd"
+  },
+  "id": "mFWbJpETMaoS9XGS",
+  "tags": []
+}
