@@ -3,6 +3,7 @@
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "POST",
         "path": "22dc92e9-366b-41c1-9d88-35ea11552292",
         "options": {}
       },
@@ -21,12 +22,13 @@
         "operation": "getAll",
         "tableId": "student_clubs",
         "limit": 2,
+        "matchType": "allFilters",
         "filters": {
           "conditions": [
             {
               "keyName": "link",
               "condition": "eq",
-              "keyValue": "={{ $json.link }}"
+              "keyValue": "={{ $json.body.link }}"
             }
           ]
         }
@@ -84,7 +86,7 @@
     {
       "parameters": {
         "operation": "scrape",
-        "url": "={{ $('Webhook').item.json.link }}",
+        "url": "={{ $('Webhook').item.json.body.link }}",
         "scrapeOptions": {
           "options": {
             "formats": {
@@ -140,7 +142,7 @@
             },
             {
               "fieldId": "link",
-              "fieldValue": "={{ $('Webhook').item.json.link }}"
+              "fieldValue": "={{ $('Webhook').item.json.body.link }}"
             }
           ]
         }
@@ -163,8 +165,10 @@
     {
       "parameters": {
         "chatId": "6541342997",
-        "text": "=🩵 Student Club inserted 🔥\n\n{{ $json.name }}\n{{ $('Webhook').item.json.link }}\n\nDas tuff nigga 😮‍💨",
-        "additionalFields": {}
+        "text": "=🩵 Student Club inserted 🔥\n\n{{ $json.name }}\n{{ $('Webhook').item.json.body.link }}\n\nDas tuff nigga 😮‍💨",
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -183,15 +187,7 @@
       }
     }
   ],
-  "pinData": {
-    "Webhook": [
-      {
-        "json": {
-          "link": "https://www.tuinvest.de/"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -249,11 +245,11 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "aedef099-0f18-44ec-a42f-6cf1b0bdb7f9",
+  "versionId": "b2c4be41-8090-46df-896f-ef612ba67cd2",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "ae4dc82b123cdeab961c362e25823556fe8945346813dbb3bb8c596bbb8225bd"
